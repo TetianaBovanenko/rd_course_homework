@@ -18,6 +18,45 @@ import polars as pl
 
 from . import config
 
+from pathlib import Path
+
 
 def build_bronze() -> pl.DataFrame:
-    raise NotImplementedError("Завдання 1: реалізуйте bronze згідно з CONTRACTS.md")
+    events = (
+        pl.scan_ndjson(
+            config.LANDING_FILE,
+            schema=config.LANDING_SCHEMA,
+        )
+        .select(
+            pl.col("id").alias("event_id"),
+            pl.col("type").alias("event_type"),
+            pl.col("actor").struct.field("id").alias("actor_id"),
+            pl.col("actor").struct.field("login").alias("actor_login"),
+            pl.col("repo").struct.field("id").alias("repo_id"),
+            pl.col("repo").struct.field("name").alias("repo_name"),
+            pl.col("created_at")
+            .str.to_datetime(
+                "%Y-%m-%dT%H:%M:%SZ",
+                time_zone="UTC",
+            )
+            .alias("created_at"),
+            pl.col("public"),
+            pl.col("payload").struct.field("action").alias("action"),
+            pl.col("payload")
+            .struct.field("commits")
+            .list.len()
+            .fill_null(0)
+            .cast(pl.Int64)
+            .alias("commit_count"),
+        )
+        .collect()
+    )
+
+    Path(config.BRONZE_FILE).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    events.write_parquet(config.BRONZE_FILE)
+
+    return events

@@ -17,14 +17,42 @@ write_silver_partitioned():
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import polars as pl
 
 from . import config
 
-
 def build_silver(bronze: pl.DataFrame) -> pl.DataFrame:
-    raise NotImplementedError("Завдання 2: реалізуйте silver згідно з CONTRACTS.md")
+    silver = (
+        bronze
+        .filter(
+            pl.col("event_type").is_in(config.TARGET_EVENT_TYPES),
+            pl.col("repo_name").is_not_null(),
+            pl.col("repo_name") != "",
+            pl.col("event_id").is_not_null(),
+            pl.col("created_at").is_not_null(),
+        )
+        .unique(subset=["event_id"])
+    )
+
+    Path(config.SILVER_FILE).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    silver.write_parquet(config.SILVER_FILE)
+
+    return silver
 
 
 def write_silver_partitioned(silver: pl.DataFrame) -> None:
-    raise NotImplementedError("Завдання 3: запишіть партиціонований silver за event_type")
+    Path(config.SILVER_PARTITIONED_DIR).mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    silver.write_parquet(
+        config.SILVER_PARTITIONED_DIR,
+        partition_by="event_type",
+    )
