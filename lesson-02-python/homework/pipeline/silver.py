@@ -1,27 +1,27 @@
-"""Silver stage — clean, filter and de-duplicate the bronze events.
+"""Silver stage — clean, filter, and de-duplicate bronze events.
 
-TODO (Завдання 2 і 3): реалізуйте build_silver() і write_silver_partitioned().
-Контракт: див. CONTRACTS.md → "silver" і "silver partitioned".
+Tasks 2 and 3: Implement build_silver() and write_silver_partitioned().
+Contract: see CONTRACTS.md → "silver" and "silver partitioned".
 
 build_silver():
-  * залиште тільки типи з config.TARGET_EVENT_TYPES
-  * приберіть рядки з порожнім/відсутнім repo_name, відсутнім event_id чи created_at
-  * гарантуйте унікальність по event_id (.unique(subset=["event_id"]))
-  * запишіть у config.SILVER_FILE і поверніть DataFrame
+  * Keep only event types from config.TARGET_EVENT_TYPES.
+  * Remove rows with an empty or missing repo_name, or missing event_id
+    or created_at.
+  * Guarantee uniqueness by event_id using .unique(subset=["event_id"]).
+  * Write the result to config.SILVER_FILE and return the DataFrame.
 
 write_silver_partitioned():
-  * запишіть silver як Hive-партиціонований датасет за event_type
-  * директорія: config.SILVER_PARTITIONED_DIR
-  * підказка: df.write_parquet(dir, partition_by="event_type")
+  * Write silver as a Hive-partitioned dataset by event_type.
+  * Directory: config.SILVER_PARTITIONED_DIR.
+  * Use df.write_parquet(dir, partition_by="event_type").
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import polars as pl
 
 from . import config
+
 
 def build_silver(bronze: pl.DataFrame) -> pl.DataFrame:
     silver = (
@@ -36,23 +36,17 @@ def build_silver(bronze: pl.DataFrame) -> pl.DataFrame:
         .unique(subset=["event_id"])
     )
 
-    Path(config.SILVER_FILE).parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    silver.write_parquet(
+        config.SILVER_FILE,
+        mkdir=True,
     )
-
-    silver.write_parquet(config.SILVER_FILE)
 
     return silver
 
 
 def write_silver_partitioned(silver: pl.DataFrame) -> None:
-    Path(config.SILVER_PARTITIONED_DIR).mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
     silver.write_parquet(
         config.SILVER_PARTITIONED_DIR,
         partition_by="event_type",
+        mkdir=True,
     )

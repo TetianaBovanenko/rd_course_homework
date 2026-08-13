@@ -1,15 +1,18 @@
-"""Bronze stage — read the raw NDJSON and flatten it to one wide table.
+"""Bronze stage — read raw NDJSON and flatten it into one wide table.
 
-TODO (Завдання 1): реалізуйте build_bronze().
-Контракт колонок та типів: див. CONTRACTS.md → "bronze".
+Task 1: Implement build_bronze().
+Column and type contract: see CONTRACTS.md → "bronze".
 
-Підказки:
-  * читайте NDJSON ліниво: pl.scan_ndjson(config.LANDING_FILE, schema=config.LANDING_SCHEMA)
-  * розгортайте вкладені структури через .struct.field("...")
-  * created_at -> datetime: .str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC")
-  * commit_count: довжина списку payload.commits; для не-PushEvent коміти
-    відсутні -> заповніть 0 (.list.len().fill_null(0))
-  * запишіть результат у config.BRONZE_FILE (Parquet) і поверніть DataFrame
+Hints:
+  * Read NDJSON lazily:
+    pl.scan_ndjson(config.LANDING_FILE, schema=config.LANDING_SCHEMA)
+  * Flatten nested structures with .struct.field("...")
+  * Convert created_at to datetime:
+    .str.to_datetime("%Y-%m-%dT%H:%M:%SZ", time_zone="UTC")
+  * commit_count is the length of payload.commits. For non-PushEvent
+    records, commits may be missing, so fill null values with 0.
+  * Write the result to config.BRONZE_FILE as Parquet and return the
+    resulting DataFrame.
 """
 
 from __future__ import annotations
@@ -17,8 +20,6 @@ from __future__ import annotations
 import polars as pl
 
 from . import config
-
-from pathlib import Path
 
 
 def build_bronze() -> pl.DataFrame:
@@ -52,11 +53,9 @@ def build_bronze() -> pl.DataFrame:
         .collect()
     )
 
-    Path(config.BRONZE_FILE).parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    events.write_parquet(
+        config.BRONZE_FILE,
+        mkdir=True,
     )
-
-    events.write_parquet(config.BRONZE_FILE)
 
     return events

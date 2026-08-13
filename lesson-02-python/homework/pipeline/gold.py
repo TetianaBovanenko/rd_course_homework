@@ -1,18 +1,20 @@
-"""Gold stage — three analytics tables built from silver.
+"""Gold stage — three analytics tables built from silver events.
 
-TODO (Завдання 4, 5, 6): реалізуйте три функції нижче.
-Контракт: див. CONTRACTS.md → "gold repo_activity", "gold activity_per_minute",
-"gold push_commits_by_repo". Усі лічильники приводьте до Int64 (.cast(pl.Int64)),
-щоб схема результату була стабільною.
+Tasks 4, 5, and 6: Implement the three functions below.
+Contract: see CONTRACTS.md → "gold repo_activity", "gold activity_per_minute",
+and "gold push_commits_by_repo".
 
-  * build_repo_activity:        кількість подій + кількість унікальних типів на repo
-  * build_activity_per_minute:  кількість подій по хвилинах (.dt.truncate("1m"))
-  * build_push_commits_by_repo: тільки PushEvent — кількість пушів і сума commit_count на repo
+All counters should be cast to Int64 using .cast(pl.Int64) so that the
+result schema remains stable.
+
+  * build_repo_activity: number of events and distinct event types per repo
+  * build_activity_per_minute: number of events per minute
+    using .dt.truncate("1m")
+  * build_push_commits_by_repo: PushEvent records only — number of pushes
+    and total commit_count per repo
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import polars as pl
 
@@ -33,12 +35,10 @@ def build_repo_activity(silver: pl.DataFrame) -> pl.DataFrame:
         .sort("event_count", descending=True)
     )
 
-    Path(config.GOLD_REPO_ACTIVITY).parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    result.write_parquet(
+        config.GOLD_REPO_ACTIVITY,
+        mkdir=True,
     )
-
-    result.write_parquet(config.GOLD_REPO_ACTIVITY)
 
     return result
 
@@ -58,12 +58,10 @@ def build_activity_per_minute(silver: pl.DataFrame) -> pl.DataFrame:
         .sort("minute")
     )
 
-    Path(config.GOLD_ACTIVITY_PER_MINUTE).parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    result.write_parquet(
+        config.GOLD_ACTIVITY_PER_MINUTE,
+        mkdir=True,
     )
-
-    result.write_parquet(config.GOLD_ACTIVITY_PER_MINUTE)
 
     return result
 
@@ -82,11 +80,9 @@ def build_push_commits_by_repo(silver: pl.DataFrame) -> pl.DataFrame:
         )
     )
 
-    Path(config.GOLD_PUSH_COMMITS).parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    result.write_parquet(
+        config.GOLD_PUSH_COMMITS,
+        mkdir=True,
     )
-
-    result.write_parquet(config.GOLD_PUSH_COMMITS)
 
     return result
