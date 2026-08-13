@@ -1,10 +1,9 @@
 -- =====================================================================
--- TASK 5 — starred_repos_without_push (12 балів). Специфікація: ../../MODELS.md → «starred_repos_without_push».
--- Репозиторії зі зіркою (WatchEvent), але без жодного PushEvent: anti-join (NOT EXISTS).
--- Контракт колонок нижче; заглушка повертає 0 рядків.
+-- TASK 5 — starred_repos_without_push (12 points). Specification: ../../MODELS.md → "starred_repos_without_push".
+-- Repositories with a star (WatchEvent) but without any PushEvent:
+-- anti-join using NOT EXISTS.
+-- The column contract is defined below.
 -- =====================================================================
-{{ config(materialized='view') }}
-
 
 SELECT DISTINCT
     watch.repo_name

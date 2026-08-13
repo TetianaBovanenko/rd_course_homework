@@ -1,10 +1,8 @@
 -- =====================================================================
--- TASK 3 — daily_activity (12 балів). Специфікація: ../../MODELS.md → «daily_activity».
--- Кількість подій по днях + накопичувальний підсумок: SUM(...) OVER (ORDER BY ...).
--- Контракт колонок нижче; заглушка повертає 0 рядків.
+-- TASK 3 — daily_activity (12 points). Specification: ../../MODELS.md → "daily_activity".
+-- Number of events per day + running total using SUM(...) OVER (ORDER BY ...).
+-- Column contract is defined below.
 -- =====================================================================
-{{ config(materialized='view') }}
-
 WITH daily_events AS (
 
     SELECT

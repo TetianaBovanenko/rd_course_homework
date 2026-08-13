@@ -1,14 +1,17 @@
 -- =====================================================================
--- TASK 7 — report_category_week (20 балів). Специфікація: ../../MODELS.md → «report_category_week».
+-- TASK 7 — report_category_week (20 points). Specification: ../../MODELS.md → "report_category_week".
 --
--- Поряд лежить report_category_week_naive.sql — він НАВМИСНО неоптимізований:
--- join до calendar по strftime(event_date) = strftime(day) перетворює ключ join,
--- через що DuckDB сканує всі 14 партицій (немає ні propagation, ні partition pruning).
+-- The report_category_week_naive.sql file is intentionally unoptimized:
+-- joining to calendar using strftime(event_date) = strftime(day) transforms
+-- the join key, causing DuckDB to scan all 14 partitions
+-- (no predicate propagation or partition pruning).
 --
--- Ваша задача: переписати ТОЙ САМИЙ запит так, щоб він повертав ІДЕНТИЧНІ рядки,
--- але читав лише 7 партицій. Підказка у MODELS.md (join по сирій партиційній колоні).
--- Перевірте план: EXPLAIN ANALYZE на скомпільованій моделі → «Total Files Read».
--- Контракт колонок нижче; заглушка повертає 0 рядків.
+-- Your task: rewrite the SAME query so that it returns IDENTICAL rows,
+-- but reads only 7 partitions. See the hint in MODELS.md
+-- (join using the raw partition column).
+-- Check the query plan with EXPLAIN ANALYZE on the compiled model
+-- and verify "Total Files Read".
+-- The column contract is defined below.
 -- =====================================================================
 SELECT
     c.iso_week,

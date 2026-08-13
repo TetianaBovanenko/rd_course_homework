@@ -1,9 +1,9 @@
 -- =====================================================================
--- TASK 6 — mart_category_daily (20 балів). Специфікація: ../../MODELS.md → «mart_category_daily».
--- Широка вітрина: multi-join stg_events + event_categories + calendar, агрегація по (день × категорія).
--- Контракт колонок нижче; заглушка повертає 0 рядків.
+-- TASK 6 — mart_category_daily (20 points). Specification: ../../MODELS.md → "mart_category_daily".
+-- Wide mart: multi-join of stg_events, event_categories, and calendar,
+-- aggregated by day × category.
+-- The column contract is defined below.
 -- =====================================================================
-{{ config(materialized='view') }}
 
 SELECT
     e.event_date,

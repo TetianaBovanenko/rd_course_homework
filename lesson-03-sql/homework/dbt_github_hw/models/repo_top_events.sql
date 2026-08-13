@@ -1,9 +1,8 @@
 -- =====================================================================
--- TASK 2 — repo_top_events (12 балів). Специфікація: ../../MODELS.md → «repo_top_events».
--- TOP-5 репозиторіїв за кількістю подій у кожному event_type: ROW_NUMBER() + QUALIFY.
--- Контракт колонок нижче; заглушка повертає 0 рядків.
+-- TASK 2 — repo_top_events (12 points). Specification: ../../MODELS.md → "repo_top_events".
+-- Top 5 repositories by event count within each event_type using ROW_NUMBER() + QUALIFY.
+-- The column contract is defined below.
 -- =====================================================================
-{{ config(materialized='view') }}
 
 WITH repo_events AS (
 
