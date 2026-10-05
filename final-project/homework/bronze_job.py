@@ -1,4 +1,4 @@
-"""Bronze: landing-зона -> bronze.raw_events у Postgres. ЕТАП 1 — реалізуйте три місця з TODO.
+"""Bronze: landing-зона -> bronze.raw_events у Postgres. ЕТАП 1 — три місця нижче.
 
 Spark у local mode читає NDJSON із landing і дописує рядки у сховище через JDBC.
 
@@ -13,29 +13,59 @@ Spark у local mode читає NDJSON із landing і дописує рядки 
 
 from __future__ import annotations
 
+import re
+
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import StructType
+from pyspark.sql import functions as F
+from pyspark.sql.types import StringType, StructField, StructType, TimestampType
 
 from common import config
 from common.spark import build_spark
 
-# TODO (4): явна схема конверта події: event_id, event_type, ride_id, occurred_at, source, payload.
-# Підказка: `payload` — вкладений обʼєкт; якщо оголосити його як StringType, Spark віддасть
-# його текст як є, без розбору.
-EVENT_SCHEMA = StructType([])
+# Явна схема конверта події. `payload` оголошено як StringType: Spark віддає
+# вкладений обʼєкт його текстом як є, без розбору — Bronze не парсить payload.
+EVENT_SCHEMA = StructType(
+    [
+        StructField("event_id", StringType(), False),
+        StructField("event_type", StringType(), False),
+        StructField("ride_id", StringType(), True),
+        StructField("source", StringType(), True),
+        StructField("occurred_at", TimestampType(), True),
+        StructField("payload", StringType(), True),
+    ]
+)
 
 
 def read_landing(spark: SparkSession, landing_dir: str) -> DataFrame:
     """Сирі події з landing плюс метадані ingestion.
 
-    TODO (4): прочитайте `*.ndjson` з `landing_dir` (рекурсивно; `*.ndjson.tmp` — це in-flight
-    файли consumer-а, їх читати не можна) з `EVENT_SCHEMA`, і поверніть колонки:
-      event_id, event_type, ride_id, occurred_at (timestamp), source, payload (СИРИЙ текст),
-      _source_file (шлях ВІДНОСНО landing/, напр. `dt=…/hour=…/part-….ndjson`),
-      _ingested_at (current_timestamp).
-    `dt=` і `hour=` у шляху — час запису файлу, а не бізнес-колонки: колонками стати не мають.
+    Читає лише `*.ndjson` (рекурсивно); `*.ndjson.tmp` — in-flight файли consumer-а,
+    їх читати не можна. `_source_file` — шлях ВІДНОСНО landing/, `_ingested_at` — момент запуску.
+    `dt=` і `hour=` у шляху лишаються частиною `_source_file`, а не бізнес-колонками.
     """
-    raise NotImplementedError("TODO (4): read_landing")
+    landing = landing_dir.rstrip("/")
+
+    df = (
+        spark.read.schema(EVENT_SCHEMA)
+        .option("recursiveFileLookup", "true")
+        .option("pathGlobFilter", "*.ndjson")
+        .json(landing)
+    )
+
+    return df.select(
+        "event_id",
+        "event_type",
+        "ride_id",
+        "occurred_at",
+        "source",
+        "payload",
+        F.regexp_replace(
+            F.regexp_replace(F.input_file_name(), r"^file:/+", "/"),
+            f"^{re.escape(landing)}/",
+            "",
+        ).alias("_source_file"),
+        F.current_timestamp().alias("_ingested_at"),
+    )
 
 
 def loaded_files(spark: SparkSession) -> set[str]:
@@ -48,19 +78,30 @@ def loaded_files(spark: SparkSession) -> set[str]:
 def select_new(df: DataFrame, already_loaded: set[str]) -> DataFrame:
     """Лишає рядки з файлів, яких ще нема в Bronze.
 
-    TODO (5): відфільтруйте за `_source_file`. Порожній `already_loaded` — це перший запуск.
+    Порожній `already_loaded` — це перший запуск (усе нове). Фільтр за `_source_file`,
+    без дедуплікації за `event_id`: дублікати лишаються в Bronze, їх прибирає Silver.
     """
-    raise NotImplementedError("TODO (5): select_new")
+    if not already_loaded:
+        return df
+    return df.filter(~F.col("_source_file").isin(already_loaded))
 
 
 def write_bronze(df: DataFrame) -> None:
     """Append у `config.BRONZE_TABLE` ОДНІЄЮ транзакцією.
 
-    TODO (6): запишіть через JDBC (`config.JDBC_URL`, `config.JDBC_PROPERTIES`) у режимі append.
-    Вимога — «або все, або нічого»: збій посеред запису не лишає в таблиці частини батча.
-    Подумайте, скільки транзакцій відкриває Spark при JDBC-записі й від чого це залежить.
+    Spark пише JDBC по-партиційно: кожна партиція DataFrame — окрема транзакція.
+    Щоб отримати «або все, або нічого», зводимо батч в одну партицію через `coalesce(1)` —
+    тоді відкривається одна транзакція, і збій посеред запису не лишає частини батча.
     """
-    raise NotImplementedError("TODO (6): write_bronze")
+    (
+        df.coalesce(1)
+        .write.mode("append")
+        .jdbc(
+            config.JDBC_URL,
+            config.BRONZE_TABLE,
+            properties=config.JDBC_PROPERTIES,
+        )
+    )
 
 
 def main() -> None:
