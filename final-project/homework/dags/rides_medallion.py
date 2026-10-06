@@ -41,7 +41,9 @@ with DAG(
 
     bronze_contract = BashOperator(
         task_id="bronze_contract",
-        bash_command=f"{DBT} test --select source:bronze {DBT_DIRS}",
+        bash_command=(
+            f"{DBT} test --select source:bronze --exclude assert_bronze_silver_reconcile {DBT_DIRS}"
+        ),
     )
 
     silver = BashOperator(
